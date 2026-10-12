@@ -7,7 +7,7 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 | # | Requirement | Target | How we measure |
 |---|---|---|---|
 | R1 | Obstacle warning latency | < 200 ms from object entering range to first vibration | Logic analyser on ToF interrupt and haptic pin |
-| R2 | Obstacle detection range | 0.2 – 3.5 m, ±5 cm | Tape-measure bench test, 20 points |
+| R2 | Obstacle detection range | 0.05 – 2.0 m, ±5 cm, three directions | Tape-measure bench test, 20 points per sensor |
 | R3 | Object detection | ≥ 5 FPS at 192×192, mAP@0.5 ≥ 0.45 on our test set | On-target timer + held-out test images |
 | R4 | Classes | person, door, stairs, chair, table, car, motorbike, bicycle, pole, dog | Dataset definition |
 | R5 | Battery life | ≥ 6 h continuous use | Discharge test |
@@ -22,7 +22,7 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 - [ ] Literature review: 10+ papers on wearable assistive vision and TinyML object detection
 - [ ] Interview 3–5 visually impaired people (with consent) about what alerts they actually need
 - [ ] Freeze requirements R1–R8
-- [ ] Order: WeAct STM32H743VIT6 board (RoboticsBD), OV3660 module, VL53L5CX breakout, MAX98357A, DRV2605L + LRA, microSD, LiPo + charger
+- [ ] Order: WeAct STM32H743VIT6 board (RoboticsBD), OV3660 module, 3 × GY-VL53L0XV2 (RoboticsBD), MAX98357A, DRV2605L + LRA, microSD, LiPo + charger
 - [ ] Set up STM32CubeIDE + X-CUBE-AI and run WeAct examples 08-DCMI2LCD and 05-DCMI_UVC
 - [ ] Repository, coding style, branch rules
 
@@ -40,8 +40,8 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 
 ## Phase 2 — ToF obstacle warning · Jan 2027 *(first useful demo)*
 
-- [ ] VL53L5CX ULD driver on I2C2 (8×8 at 15 Hz, interrupt on PD4)
-- [ ] Obstacle logic: nearest distance per left / centre / right column, ignore floor zones
+- [ ] VL53L0X driver for 3 sensors on I2C2: XSHUT start-up sequence, addresses 0x30/0x31/0x32, long-range mode, 30 Hz
+- [ ] Obstacle logic: per-sensor median filter, left / centre / right thresholds, ignore invalid readings
 - [ ] DRV2605L haptics: pulse rate rises as distance falls
 - [ ] FreeRTOS tasks: tofTask (highest priority), alertTask, feedback
 - [ ] Bench test R1 and R2
@@ -62,7 +62,7 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 ## Phase 4 — Fusion and voice feedback · Mar 2027
 
 - [ ] Low-priority aiTask feeding detections to fusionTask through a FreeRTOS queue
-- [ ] Map each box to ToF zones → distance and direction
+- [ ] Map each box to the left / centre / right ToF sensor → distance and direction; calibrate band edges
 - [ ] Priority rules: close obstacles first, then people and vehicles, then everything else
 - [ ] Voice prompts: record ~40 short clips (English and Bangla), store in QSPI, play with I2S + DMA
 - [ ] Buttons: "describe scene", mute, volume
@@ -106,6 +106,7 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 | No SDRAM, frames must fit in 1 MB RAM | Pipeline limits | Use OV3660 windowing for 240×240; 3 MP only as JPEG streamed to SD |
 | OV3660 driver issues | Phase 1 delay | OV5640-AF, already supported by WeAct's examples |
 | ToF confused by sunlight outdoors | False alarms | Combine with camera detections; reduce range outdoors |
+| VL53L0X range (~2 m) too short outdoors | Late warnings | Use the camera for far objects; upgrade to VL53L5CX (4 m, 8×8) later |
 | Battery life too short | R5 missed | Duty-cycle the camera, run AI only on button press or when ToF sees something |
 | Component delays | Schedule | Order early; keep breakout-board prototype working |
 

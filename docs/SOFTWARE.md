@@ -8,10 +8,10 @@ Everything runs on the single M7 under **FreeRTOS**. Priorities guarantee that o
 
 | Task | Priority | Period | Job |
 |---|---|---|---|
-| `tofTask` | Highest | 66 ms (15 Hz) | Read VL53L5CX 8×8, filter, nearest distance per left / centre / right sector |
+| `tofTask` | Highest | 33 ms (30 Hz) | Read the 3 VL53L0X sensors (left / centre / right), median filter, flag invalid readings |
 | `alertTask` | High | event | Danger rule (< 1 m centre) → haptics immediately |
 | `cameraTask` | Medium | event | DCMI frame done → hand buffer to AI, or save JPEG snapshot to SD |
-| `fusionTask` | Medium | event | Match detection boxes to ToF zones → distance + direction |
+| `fusionTask` | Medium | event | Match each detection box to the ToF sensor covering its horizontal position → distance + side |
 | `audioTask` | Medium | event | Play voice prompt from QSPI over I2S DMA |
 | `aiTask` | Low | continuous / on demand | Pre-process + STM32Cube.AI inference |
 | `uiTask` | Low | event | Buttons, LCD status, battery |
@@ -50,9 +50,21 @@ On K1 long-press: switch OV3660 to JPEG 2048×1536 → DCMI DMA in chunks → mi
 
 **Budget:** activations ≤ 400 KB (AXI SRAM), weights ≤ 1.5 MB (internal flash; memory-mapped QSPI if larger, at some speed cost). Input 192×192 first; drop to 160×160 or fewer classes if FPS < 5.
 
+## ToF fusion
+
+The camera image is split into three vertical bands that match the three sensors' fields of view:
+
+| Box centre in image | Distance from | Spoken side |
+|---|---|---|
+| left third | left VL53L0X | "left" |
+| middle third | centre VL53L0X | "ahead" |
+| right third | right VL53L0X | "right" |
+
+If the matching sensor reads beyond 2 m or is invalid, the object is announced without distance ("person, far, left"). The exact band edges are calibrated in Phase 4 by placing an object at known angles.
+
 ## Feedback rules
 
-1. **Danger first:** anything closer than 1 m in the centre sector → strong, fast vibration straight from `alertTask` (no AI needed).
+1. **Danger first:** anything closer than 1 m on the centre sensor (or 0.6 m on a side sensor) → strong, fast vibration straight from `alertTask` (no AI needed).
 2. **Important objects:** person, car, motorbike, bicycle, dog → voice prompt with distance and side (*"car, three metres, right"*).
 3. **Navigation objects:** door, stairs → voice prompt.
 4. Do not repeat the same message within 5 s; drop stale messages.
@@ -71,7 +83,7 @@ firmware/
   Core/ Drivers/ Middlewares/ (FreeRTOS, FatFs, X-CUBE-AI)
   App/camera   OV3660 driver, DCMI capture, JPEG snapshot
   App/ai       pre-processing, network wrapper, NMS
-  App/tof      VL53L5CX ULD driver wrapper, sector filter
+  App/tof      VL53L0X driver (ST API), 3-sensor address setup, filtering
   App/fusion   box → zone mapping, priority rules
   App/audio    I2S player, prompt table in QSPI
   App/haptics  DRV2605L

@@ -26,11 +26,26 @@ Bought locally from [RoboticsBD](https://store.roboticsbd.com/internet-of-things
 | Item | Part | Interface | Notes |
 |---|---|---|---|
 | Camera | OV3660 module, 3 MP (2048×1536), 24-pin DVP | DCMI + SCCB on I2C1 | JPEG + RGB565/YUV. Fallback: OV5640-AF, already supported by WeAct examples |
-| ToF | VL53L5CX breakout | I2C2 + INT + LPn | 8×8 zones, up to 4 m, 63° diagonal FoV |
+| ToF | **3 × GY-VL53L0XV2** (VL53L0X) breakouts, [RoboticsBD](https://store.roboticsbd.com/sensors/554-gy-vl53l0xv2v-vl53l0x-time-of-flight-distance-sensor-breakout-module-robotics-bangladesh.html) | I2C2 + XSHUT + GPIO1 each | Single zone, ~2 m (long-range mode), 25° FoV. Mounted angled about 25° apart: left / centre / right |
 | Audio amp | MAX98357A breakout | I2S2 (SPI2) | Mono class-D, drives speaker or bone-conduction transducer |
-| Haptics | DRV2605L breakout + LRA | I2C2 (shared with ToF) | Addresses differ (0x29 ToF, 0x5A haptics) |
+| Haptics | DRV2605L breakout + LRA | I2C2 (shared with ToF) | ToF sensors re-addressed at boot to 0x30/0x31/0x32; haptics at 0x5A |
 | Buttons | 2 extra tactile buttons | GPIO EXTI | Mute, volume (K1 = describe) |
 | Battery | 1-cell LiPo 2000 mAh + TP4056/BQ25895 charger + 5 V boost or 3.3 V buck | Board 5 V input | |
+
+## ToF layout: three VL53L0X sensors
+
+The VL53L0X measures one distance in a 25° cone, so one sensor cannot tell left from right. Three sensors, angled about 25° apart, cover roughly 75° in front of the user:
+
+```
+          left      centre     right
+           \    25°   |   25°    /
+            \         |         /
+             [L]     [C]     [R]      ← mounted on the chest clip / glasses bridge
+```
+
+- All three share I2C2. At power-up every sensor is held off with XSHUT; they are switched on one at a time and given new addresses (0x30, 0x31, 0x32), because they all start at 0x29.
+- Long-range mode: up to about 2 m indoors; expect less in bright sunlight.
+- Upgrade path: the VL53L5CX (8×8 zones, 4 m) can replace all three with one sensor later; the software keeps the same left / centre / right interface.
 
 ## Pin map
 
@@ -49,8 +64,9 @@ Pins marked **board** come from WeAct's example `.ioc` files (fixed by the PCB).
 | USB | PA11 DM, PA12 DP | board |
 | Key / LED | PC13 / PE3 | board |
 | SWD | PA13 SWDIO, PA14 SWCLK | board |
-| ToF + haptics bus | I2C2: PB10 SCL, PB11 SDA | ours |
-| ToF INT / LPn | PD4 / PD5 | ours |
+| ToF + haptics bus | I2C2: PB10 SCL, PB11 SDA (4.7 kΩ pull-ups) | ours |
+| ToF XSHUT left / centre / right | PD5 / PD8 / PD9 | ours |
+| ToF GPIO1 (data ready) left / centre / right | PD4 / PD10 / PD14 (EXTI) | ours |
 | Audio I2S | I2S2: PB12 WS, PB13 CK, PB15 SD | ours |
 | Mute / volume buttons | PD0 / PD1 (EXTI) | ours |
 | Battery voltage | PC0 (ADC, via 1:2 divider) | ours |
@@ -63,7 +79,7 @@ Pins marked **board** come from WeAct's example `.ioc` files (fixed by the PCB).
 | AXI SRAM | 512 KB | Model activations (≤ 400 KB) + tensor input |
 | SRAM1–3 | 288 KB | Camera frame buffer (240×240 RGB565 = 112.5 KB; QVGA = 150 KB) + DMA buffers |
 | DTCM | 128 KB | FreeRTOS stacks, fast variables |
-| SRAM4 | 64 KB | ToF data, audio DMA buffer |
+| SRAM4 | 64 KB | Audio DMA buffer |
 | QSPI (memory-mapped) | 8 MB | Voice prompts, overflow weights |
 | microSD | — | 3 MP JPEG snapshots, logs, dataset capture |
 
@@ -79,12 +95,12 @@ WeAct examples run at 240 MHz. The H743 (revision V) can run at **480 MHz** with
 |---|---|
 | STM32H743 at 480 MHz running AI | ~150 mA |
 | OV3660 streaming | ~100 mA |
-| VL53L5CX at 15 Hz | ~95 mA |
+| 3 × VL53L0X ranging | ~60 mA |
 | LCD (debug only, off in wearable mode) | ~20 mA |
 | Audio + haptics (average) | ~40 mA |
-| **Total** | **~400 mA at 3.3 V** |
+| **Total** | **~365 mA at 3.3 V** |
 
-2000 mAh LiPo → about 4.5 h continuous. Running detection only when ToF sees something or the user presses K1 should reach the **6 h** target.
+2000 mAh LiPo → about 5 h continuous. Running detection only when ToF sees something or the user presses K1 should reach the **6 h** target.
 
 ## Parts list — prototype (approx.)
 
@@ -92,7 +108,7 @@ WeAct examples run at 240 MHz. The H743 (revision V) can run at **480 MHz** with
 |---|---|---|
 | WeAct STM32H743VIT6 core board with 0.96" TFT | 1 | check RoboticsBD price |
 | OV3660 3 MP DVP module (24-pin) | 1 | ~USD 12 |
-| VL53L5CX breakout | 1 | ~USD 20 |
+| GY-VL53L0XV2 breakout (RoboticsBD) | 3 | check RoboticsBD price |
 | MAX98357A breakout | 1 | ~USD 6 |
 | DRV2605L breakout + LRA | 1 | ~USD 10 |
 | microSD card 16 GB | 1 | ~USD 5 |
@@ -103,6 +119,6 @@ WeAct examples run at 240 MHz. The H743 (revision V) can run at **480 MHz** with
 
 Same STM32H743VIT6 (LQFP100, hand-solderable), so the prototype firmware ports with the same pin map:
 
-- 4-layer PCB in KiCad: MCU, QSPI flash, microSD, camera FPC, VL53L5CX, MAX98357A, DRV2605L, BQ25895 charger, TPS62133 3.3 V buck, USB-C with ESD
+- 4-layer PCB in KiCad: MCU, QSPI flash, microSD, camera FPC, 3 × VL53L0X on angled flex or small daughter boards, MAX98357A, DRV2605L, BQ25895 charger, TPS62133 3.3 V buck, USB-C with ESD
 - DCMI lines kept short and length-matched, solid ground plane under the camera and clock lines
 - Assembled at JLCPCB; 3D-printed chest-clip or glasses-mount enclosure

@@ -1,0 +1,21 @@
+# STM32CubeIDE
+Debug/
+Release/
+*.launch
+.settings/
+# Python / ML
+__pycache__/
+*.pyc
+.venv/
+ml/data/
+ml/runs/
+*.h5
+*.tflite
+!ml/models/*.tflite
+# KiCad
+*-backups/
+*.kicad_prl
+fp-info-cache
+# OS
+.DS_Store
+Thumbs.db

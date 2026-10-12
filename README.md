@@ -3,7 +3,8 @@
 **A wearable, offline vision assistant for visually impaired people.**
 It runs object detection on an STM32H7 microcontroller, measures distance with three time-of-flight (ToF) sensors (left, centre, right), and tells the user what is ahead through audio and vibration. No phone, no cloud, no internet.
 
-> Status: **planning / Phase 0** — see the [project plan](docs/PLAN.md) and the [milestones](../../milestones).
+> Status: **firmware v0.1 builds** (PlatformIO, STM32duino + FreeRTOS + TensorFlow Lite Micro) — see [firmware/](firmware/).
+> Hardware bring-up is next. Plan: [docs/PLAN.md](docs/PLAN.md) · Milestones: [../../milestones](../../milestones)
 
 ---
 

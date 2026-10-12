@@ -1,0 +1,8 @@
+.pio/
+.vscode/
+__pycache__/
+*.pyc
+firmware.bin
+frame_*.png
+models/*_float.tflite
+dataset/

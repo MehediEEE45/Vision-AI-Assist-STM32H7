@@ -38,6 +38,9 @@ On K1 long-press: switch OV3660 to JPEG 2048×1536 → DCMI DMA in chunks → mi
 
 ## Model
 
+**Implemented in firmware v0.1:** a classifier (not a box detector) runs on three 160×160 squares — left, centre and right — taken from the middle of a 320×240 grayscale frame. Each square maps to one VL53L0X, which gives the distance. It ships with Google's pretrained person-detection model and can be swapped for a custom multi-class model trained with `firmware/ml/train_classifier.py`. A full object detector (boxes) remains the Phase 3 goal below.
+
+
 | Step | Tool |
 |---|---|
 | Start point | ST Model Zoo object detection (`st_ssd_mobilenet_v1`, `st_yolo_lc_v1`) — chosen for MCUs without an NPU |

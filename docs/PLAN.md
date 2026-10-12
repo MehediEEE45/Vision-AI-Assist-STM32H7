@@ -22,8 +22,8 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 - [ ] Literature review: 10+ papers on wearable assistive vision and TinyML object detection
 - [ ] Interview 3–5 visually impaired people (with consent) about what alerts they actually need
 - [ ] Freeze requirements R1–R8
-- [ ] Order: STM32H747I-DISCO, OV3660 module, VL53L5CX breakout, MAX98357A, DRV2605L + LRA, LiPo + charger
-- [ ] Set up STM32CubeIDE, X-CUBE-AI, STM32CubeMX projects for CM7 and CM4
+- [ ] Order: WeAct STM32H743VIT6 board (RoboticsBD), OV3660 module, VL53L5CX breakout, MAX98357A, DRV2605L + LRA, microSD, LiPo + charger
+- [ ] Set up STM32CubeIDE + X-CUBE-AI and run WeAct examples 08-DCMI2LCD and 05-DCMI_UVC
 - [ ] Repository, coding style, branch rules
 
 **Demo:** requirements document and parts on the bench.
@@ -31,19 +31,19 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 ## Phase 1 — Camera bring-up · Dec 2026
 
 - [ ] OV3660 driver: SCCB (I2C) register init, power-down and reset lines
-- [ ] DCMI + DMA capture into SDRAM (QVGA RGB565 first, then 3 MP JPEG snapshot)
-- [ ] Show live preview on the Disco LCD
+- [ ] DCMI + DMA capture into internal SRAM (240×240 RGB565), then 3 MP JPEG snapshot to microSD
+- [ ] Show live preview on the 0.96" ST7735 LCD; raise clock to 480 MHz
 - [ ] Stream frames to PC over USB-CDC; Python viewer in `tools/`
 - [ ] Measure capture FPS and DMA load
 
-**Demo:** live camera preview on the Disco display and on a laptop.
+**Demo:** live camera preview on the board's LCD and on a laptop (USB UVC).
 
 ## Phase 2 — ToF obstacle warning · Jan 2027 *(first useful demo)*
 
-- [ ] VL53L5CX ULD driver on the CM4 (I2C, 8×8 at 15 Hz)
+- [ ] VL53L5CX ULD driver on I2C2 (8×8 at 15 Hz, interrupt on PD4)
 - [ ] Obstacle logic: nearest distance per left / centre / right column, ignore floor zones
 - [ ] DRV2605L haptics: pulse rate rises as distance falls
-- [ ] FreeRTOS tasks on the CM4: sensor, logic, feedback
+- [ ] FreeRTOS tasks: tofTask (highest priority), alertTask, feedback
 - [ ] Bench test R1 and R2
 
 **Demo:** walk toward a wall blindfolded and feel the warning.
@@ -53,27 +53,27 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 - [ ] Dataset: COCO subset for the R4 classes + 1,000+ local photos (SUST campus, Sylhet streets: rickshaws, poles, stairs)
 - [ ] Baseline: ST Model Zoo `st_ssd_mobilenet_v1` / `st_yolo_lc_v1`, 192×192
 - [ ] Fine-tune, INT8 post-training quantisation, evaluate mAP
-- [ ] Export with STM32Cube.AI, check RAM/flash fit (activations in AXI SRAM, weights in internal flash or QSPI)
-- [ ] Pre-processing on the M7: crop, resize, normalise with DMA2D
+- [ ] Export with STM32Cube.AI, check fit: activations ≤ 400 KB AXI SRAM, weights ≤ 1.5 MB internal flash
+- [ ] Pre-processing with DMA2D: colour convert, resize, normalise
 - [ ] Measure FPS and accuracy on target (R3)
 
-**Demo:** boxes drawn on the Disco LCD in real time.
+**Demo:** detections shown on the LCD and on the PC viewer in real time.
 
 ## Phase 4 — Fusion and voice feedback · Mar 2027
 
-- [ ] Inter-core messaging (HSEM + shared SRAM) from M7 to M4
+- [ ] Low-priority aiTask feeding detections to fusionTask through a FreeRTOS queue
 - [ ] Map each box to ToF zones → distance and direction
 - [ ] Priority rules: close obstacles first, then people and vehicles, then everything else
 - [ ] Voice prompts: record ~40 short clips (English and Bangla), store in QSPI, play with I2S + DMA
 - [ ] Buttons: "describe scene", mute, volume
 - [ ] Power profiling and low-power modes when idle
 
-**Demo:** full prototype on the Disco board says *"person, two metres, left"*.
+**Demo:** full prototype on the WeAct board says *"person, two metres, left"*.
 
 ## Phase 5 — Wearable hardware · Apr–May 2027
 
-- [ ] Schematic: STM32H747 (or H743 + cheaper SDRAM-free variant if the model fits), camera FPC, ToF, audio, haptics, charger, USB-C
-- [ ] 4-layer PCB in KiCad, impedance-controlled DCMI and SDRAM routing, ground planes
+- [ ] Schematic: STM32H743VIT6 (same as prototype), QSPI flash, microSD, camera FPC, ToF, audio, haptics, charger, USB-C
+- [ ] 4-layer PCB in KiCad, short length-matched DCMI routing, solid ground planes
 - [ ] DRC/ERC clean, order from JLCPCB with assembly
 - [ ] 3D-printed chest-clip or glasses-mount enclosure
 - [ ] Port firmware to the custom board; bring-up checklist
@@ -102,8 +102,9 @@ Each phase ends with a demo you can show. Each phase is a GitHub **milestone**; 
 
 | Risk | Impact | Plan B |
 |---|---|---|
-| Model too large or too slow for the H7 | R3 missed | Smaller input (128×128), fewer classes, or STM32N6 (has an NPU) |
-| OV3660 driver issues | Phase 1 delay | OV5640 (well documented) or Arducam Mega 3MP over SPI |
+| Model too large or too slow for the H743 (no NPU, 1 MB RAM) | R3 missed | 160×160 input, fewer classes, weights in QSPI; later STM32N6 (has an NPU) |
+| No SDRAM, frames must fit in 1 MB RAM | Pipeline limits | Use OV3660 windowing for 240×240; 3 MP only as JPEG streamed to SD |
+| OV3660 driver issues | Phase 1 delay | OV5640-AF, already supported by WeAct's examples |
 | ToF confused by sunlight outdoors | False alarms | Combine with camera detections; reduce range outdoors |
 | Battery life too short | R5 missed | Duty-cycle the camera, run AI only on button press or when ToF sees something |
 | Component delays | Schedule | Order early; keep breakout-board prototype working |
